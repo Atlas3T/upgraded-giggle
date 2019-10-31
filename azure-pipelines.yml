@@ -30,3 +30,44 @@ steps:
       echo "##vso[task.setvariable variable=PATH;]%PATH%;%USERPROFILE%\.cargo\bin"
     displayName: Windows install rust
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
+  - task: DotNetCoreCLI@2
+    displayName: 'Build solution'
+    inputs:
+      projects: 'src/**/*.csproj'
+      arguments: '--configuration $(BuildConfiguration)'
+      failOnStandardError: 'true'
+
+  # Copy files    
+  - task: CopyFiles@2
+    displayName: 'Copy Files to: $(build.artifactstagingdirectory)'
+    inputs:
+      SourceFolder: '$(system.defaultworkingdirectory)'
+      Contents: '**/azure-functions/**'
+      TargetFolder: '$(build.artifactstagingdirectory)'
+  # Create Archive : zip file
+  - task: ArchiveFiles@2
+    displayName: 'Archive $(build.artifactstagingdirectory)/target/azure-functions/$(functionAppMvnTargetFolder)'
+    inputs:
+      rootFolderOrFile: '$(build.artifactstagingdirectory)/target/azure-functions/$(functionAppMvnTargetFolder)'
+      includeRootFolder: false
+      archiveType: 'zip'
+      archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+      replaceExistingArchive: true
+  # Deploy using Azure App Service Deploy - Webdeployment
+  - task: AzureRmWebAppDeployment@4
+    displayName: 'Azure App Service Deploy: javapipeline'
+    inputs:
+      azureSubscription: '$(azureSubcriptionKey)'
+      appType: functionApp
+      WebAppName: yourAppServiceName
+      packageForLinux: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+      enableCustomDeployment: true
+      DeploymentType: runFromZip    
+      TakeAppOfflineFlag: false
+      ExcludeFilesFromAppDataFlag: false
+      RenameFilesFlag: false
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Artifact: drop'
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
