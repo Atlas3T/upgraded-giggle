@@ -56,9 +56,9 @@ steps:
       replaceExistingArchive: true
   # Deploy using Azure App Service Deploy - Webdeployment
   - task: AzureRmWebAppDeployment@4
-    displayName: 'Azure App Service Deploy: javapipeline'
+    displayName: 'Azure App Service Deploy'
     inputs:
-      azureSubscription: '$(azureSubcriptionKey)'
+      azureSubscription: '1232e929-30b6-4eda-b977-1116961439c8'
       appType: functionApp
       WebAppName: yourAppServiceName
       packageForLinux: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
