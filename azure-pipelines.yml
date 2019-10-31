@@ -11,6 +11,10 @@ pool:
 
 steps:
   - bash: |
+      git config --system core.longpaths true
+    displayName: 'allow looooooong paths'
+
+  - bash: |
       git submodule update --init --force --recursive
     displayName: 'Clone submodules'
 
