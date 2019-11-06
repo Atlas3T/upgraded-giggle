@@ -16,6 +16,23 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DocumentStamp
 {
+    public class Autofac
+    {
+        public IContainer GetAutofacContainer()
+        {
+            var containerBuilder = AutoFacHelper.GenerateRpcClientContainerBuilder();
+            var container = containerBuilder.Build();
+            var keyStore = container.Resolve<IKeyStore>();
+
+            if (keyStore.KeyStoreDecrypt(KeyRegistryTypes.DefaultKey) == null)
+            {
+                keyStore.KeyStoreGenerate(NetworkType.Devnet, KeyRegistryTypes.DefaultKey).Wait();
+            }
+
+            return container;
+        }
+    }
+
     public class Startup : FunctionsStartup
     {
         public override void Configure(IFunctionsHostBuilder builder)

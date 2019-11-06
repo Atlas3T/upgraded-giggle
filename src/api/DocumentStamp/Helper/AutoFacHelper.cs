@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -23,7 +24,6 @@ using Catalyst.Core.Modules.KeySigner;
 using Catalyst.Core.Modules.Keystore;
 using Catalyst.Core.Modules.Rpc.Client;
 using Catalyst.Core.Modules.Rpc.Client.IO.Observers;
-using Catalyst.Protocol.Network;
 using DocumentStamp.Model;
 using Microsoft.Extensions.Configuration;
 using Serilog;
@@ -35,8 +35,12 @@ namespace DocumentStamp.Helper
     {
         public static ContainerBuilder GenerateRpcClientContainerBuilder()
         {
+            var local_root = Environment.GetEnvironmentVariable("AzureWebJobsScriptRoot");
+            var azure_root = $"{Environment.GetEnvironmentVariable("HOME")}/site/wwwroot";
+            var actual_root = local_root ?? azure_root;
+            //ExecutionContext.FunctionAppDirectory;
             var configRoot = new ConfigurationBuilder()
-                .AddJsonFile(Path.Combine(Directory.GetCurrentDirectory(), "config.json")).Build();
+                .AddJsonFile(Path.Combine(actual_root, "config.json")).Build();
             var configModule = new ConfigurationModule(configRoot);
 
             var containerBuilder = new ContainerBuilder();
@@ -46,8 +50,7 @@ namespace DocumentStamp.Helper
             containerBuilder.RegisterType<Config>();
             containerBuilder.RegisterType<ConsoleUserOutput>().As<IUserOutput>();
             containerBuilder.RegisterType<ConsoleUserInput>().As<IUserInput>();
-            containerBuilder.RegisterInstance(new LoggerConfiguration().WriteTo.Console().CreateLogger())
-                .As<ILogger>();
+            containerBuilder.RegisterInstance(new LoggerConfiguration().WriteTo.Debug(Serilog.Events.LogEventLevel.Debug).CreateLogger()).As<ILogger>();
             containerBuilder.RegisterModule<CoreLibProvider>();
             containerBuilder.RegisterModule<RpcClientModule>();
             containerBuilder.RegisterModule<KeySignerModule>();

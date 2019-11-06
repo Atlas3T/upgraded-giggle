@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Autofac;
 using Catalyst.Abstractions.Cryptography;
 using DocumentStamp.Http.Response;
 using Microsoft.AspNetCore.Http;
@@ -15,9 +16,11 @@ namespace DocumentStamp.Function
     {
         private readonly IPrivateKey _privateKey;
 
-        public DocumentStampSettings(IPrivateKey privateKey)
+        public DocumentStampSettings()
         {
-            _privateKey = privateKey;
+            var autoFac = new Autofac();
+            var container = autoFac.GetAutofacContainer();
+            _privateKey = container.Resolve<IPrivateKey>();
         }
 
         [FunctionName("DocumentStampSettingsFunction")]
