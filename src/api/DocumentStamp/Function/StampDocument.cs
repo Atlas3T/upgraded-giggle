@@ -2,9 +2,12 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Autofac;
 using Catalyst.Abstractions.Cryptography;
+using Catalyst.Abstractions.Keystore;
 using Catalyst.Abstractions.P2P;
 using Catalyst.Abstractions.Rpc;
+using Catalyst.Abstractions.Types;
 using Catalyst.Core.Lib.Extensions;
 using Catalyst.Core.Lib.IO.Messaging.Correlation;
 using Catalyst.Core.Lib.IO.Messaging.Dto;
@@ -27,26 +30,26 @@ namespace DocumentStamp.Function
 {
     public class StampDocument
     {
-        private readonly AutoResetEvent _autoResetEvent;
-        private readonly Config _config;
-        private readonly IPeerSettings _peerSettings;
-        private readonly ICryptoContext _cryptoContext;
-        private readonly IPrivateKey _privateKey;
-        private readonly IRpcClient _rpcClient;
-        private readonly PeerId _recipientPeer;
+        //private readonly AutoResetEvent _autoResetEvent;
+        //private readonly Config _config;
+        //private readonly IPeerSettings _peerSettings;
+        //private readonly ICryptoContext _cryptoContext;
+        //private readonly IPrivateKey _privateKey;
+        //private readonly IRpcClient _rpcClient;
+        //private readonly PeerId _recipientPeer;
 
-        public StampDocument(Config config, IPeerSettings peerSettings, ICryptoContext cryptoContext,
-            IPrivateKey privateKey, IRpcClient rpcClient,
-            PeerId recipientPeer)
-        {
-            _autoResetEvent = new AutoResetEvent(false);
-            _config = config;
-            _peerSettings = peerSettings;
-            _cryptoContext = cryptoContext;
-            _privateKey = privateKey;
-            _rpcClient = rpcClient;
-            _recipientPeer = recipientPeer;
-        }
+        //public StampDocument(Config config, IPeerSettings peerSettings, ICryptoContext cryptoContext,
+        //    IPrivateKey privateKey, IRpcClient rpcClient,
+        //    PeerId recipientPeer)
+        //{
+        //    _autoResetEvent = new AutoResetEvent(false);
+        //    _config = config;
+        //    _peerSettings = peerSettings;
+        //    _cryptoContext = cryptoContext;
+        //    _privateKey = privateKey;
+        //    _rpcClient = rpcClient;
+        //    _recipientPeer = recipientPeer;
+        //}
 
         [FunctionName("StampDocument")]
         public async Task<IActionResult> Run(
@@ -58,6 +61,27 @@ namespace DocumentStamp.Function
 
             try
             {
+                //var rpcClientConfig = container.Resolve<IRpcClientConfig>();
+                //            builder.Services.AddSingleton(container.Resolve<Config>());
+                //            builder.Services.AddSingleton(container.Resolve<IPeerSettings>());
+                //            builder.Services.AddSingleton(container.Resolve<ICryptoContext>());
+                //            builder.Services.AddSingleton(keyStore.KeyStoreDecrypt(KeyRegistryTypes.DefaultKey));
+                //            builder.Services.AddSingleton(container.Resolve<IRpcClient>());
+                //            builder.Services.AddSingleton(rpcClientConfig.PublicKey.BuildPeerIdFromBase32Key(rpcClientConfig.HostAddress, rpcClientConfig.Port));
+
+                var autoResetEvent = new AutoResetEvent(false);
+                var containerBuilder = AutoFacHelper.GenerateRpcClientContainerBuilder();
+                var container = containerBuilder.Build();
+                var keyStore = container.Resolve<IKeyStore>();
+                var rpcClient = container.Resolve<IRpcClient>();
+                var cryptoContext = container.Resolve<ICryptoContext>();
+                var peerSettings = container.Resolve<IPeerSettings>();
+                var config = container.Resolve<Config>();
+                var rpcClientConfig = container.Resolve<IRpcClientConfig>();
+                var recipientPeer = rpcClientConfig.PublicKey.BuildPeerIdFromBase32Key(rpcClientConfig.HostAddress, rpcClientConfig.Port);
+                var privateKey = keyStore.KeyStoreDecrypt(KeyRegistryTypes.DefaultKey);
+                var publicKey = privateKey.GetPublicKey();
+
                 //Validate the request model sent by the user or client
                 var stampDocumentRequest =
                     ModelValidator.ValidateAndConvert<StampDocumentRequest>(await req.ReadAsStringAsync());
@@ -70,13 +94,13 @@ namespace DocumentStamp.Function
                 }
 
                 var receiverPublicKey =
-                    _cryptoContext.GetPublicKeyFromBytes(stampDocumentRequest.PublicKey.FromBase32());
+                    cryptoContext.GetPublicKeyFromBytes(stampDocumentRequest.PublicKey.FromBase32());
 
                 //Connect to the node
-                await _rpcClient.StartAsync();
+                await rpcClient.StartAsync();
 
                 //Listen to BroadcastRawTransactionResponse responses from the node.
-                _rpcClient.SubscribeToResponse<BroadcastRawTransactionResponse>(x =>
+                rpcClient.SubscribeToResponse<BroadcastRawTransactionResponse>(x =>
                 {
                     if (x.ResponseCode != ResponseCode.Successful)
                     {
@@ -84,24 +108,24 @@ namespace DocumentStamp.Function
                             $"Stamp document returned an invalid response code: {x.ResponseCode}");
                     }
 
-                    _autoResetEvent.Set();
+                    autoResetEvent.Set();
                 });
 
                 //Construct DocumentStamp smart contract data
                 var userProofJson = JsonConvert.SerializeObject(stampDocumentRequest);
                 var transaction =
-                    StampTransactionHelper.GenerateStampTransaction(_privateKey, receiverPublicKey,
+                    StampTransactionHelper.GenerateStampTransaction(privateKey, receiverPublicKey,
                         userProofJson.ToUtf8Bytes(), 1, 1);
                 var protocolMessage =
-                    transaction.ToProtocolMessage(_peerSettings.PeerId, CorrelationId.GenerateCorrelationId());
+                    transaction.ToProtocolMessage(peerSettings.PeerId, CorrelationId.GenerateCorrelationId());
 
-                _rpcClient.SendMessage(new MessageDto(protocolMessage, _recipientPeer));
+                rpcClient.SendMessage(new MessageDto(protocolMessage, recipientPeer));
 
                 //Wait for node response then generate azure function response
-                _autoResetEvent.WaitOne();
+                autoResetEvent.WaitOne();
 
                 var stampDocumentResponse =
-                    HttpHelper.GetStampDocument(_config.NodeConfig.WebAddress,
+                    HttpHelper.GetStampDocument(config.NodeConfig.WebAddress,
                         transaction.Transaction.Signature.RawBytes.ToByteArray().ToBase32().ToUpperInvariant());
                 return new OkObjectResult(new Result<StampDocumentResponse>(true, stampDocumentResponse));
             }
