@@ -56,6 +56,7 @@ namespace DocumentStamp.Function
 
             try
             {
+                //Required or it will cause outofmemory exceptions on azure functions!
                 Environment.SetEnvironmentVariable("io.netty.allocator.type", "unpooled");
 
                 //Validate the request model sent by the user or client
@@ -118,8 +119,7 @@ namespace DocumentStamp.Function
 
                 var handlers = new List<IRpcResponseObserver>
                 {
-                    new BroadcastRawTransactionResponseObserver(logger),
-                    new GetVersionResponseObserver(logger)
+                    new BroadcastRawTransactionResponseObserver(logger)
                 };
 
                 var rpcClientFactory = new RpcClientFactory(nodeRpcClientChannelFactory, tcpClientEventLoopGroupFactory, handlers);
@@ -147,10 +147,8 @@ namespace DocumentStamp.Function
                 var protocolMessage =
                     transaction.ToProtocolMessage(peerSettings.PeerId, CorrelationId.GenerateCorrelationId());
 
-
                 var autoResetEvent = new AutoResetEvent(false);
                 ResponseCode? responseCode = null;
-
 
                 var rpcClient = await rpcClientFactory.GetClient(certificate, rpcClientSettings).ConfigureAwait(false);
 
