@@ -1,14 +1,11 @@
 ﻿using System;
 using System.IO;
-using System.Threading.Tasks;
 using DocumentStamp.Helper;
 using DocumentStamp.Http.Response;
-using DocumentStamp.Model;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace DocumentStamp.Function
@@ -26,12 +23,8 @@ namespace DocumentStamp.Function
 
             try
             {
-                var configRoot = new ConfigurationBuilder()
-                    .AddJsonFile(Path.Combine(Directory.GetCurrentDirectory(), "config.json")).Build();
-
-                var config = new Config(configRoot);
                 var stampDocumentResponse =
-                    HttpHelper.GetStampDocument(config.NodeConfig.WebAddress, txId);
+                    HttpHelper.GetStampDocument(Environment.GetEnvironmentVariable("NodeWebAddress"), txId);
                 return new OkObjectResult(new Result<StampDocumentResponse>(true, stampDocumentResponse));
             }
             catch (InvalidDataException ide)

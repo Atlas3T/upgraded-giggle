@@ -2,10 +2,28 @@
   "IsEncrypted": false,
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
-    "FUNCTIONS_WORKER_RUNTIME": "dotnet"
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet",
+    "NodePublicKey": "kzzmexbo3jyus6rmwbgl3ebysj2al2cdmcobxq2deqhqglxkkckq",
+    "NodeIpAddress": "134.209.180.20",
+    "NodePort": 42066,
+    "NodeWebAddress": "http://134.209.180.20:5005",
+    "NodePfxFileName": "mycert.pfx",
+    "NodeSslCertPassword": "test",
+    "NodePassword": "test",
+    "FunctionPrivateKey": "tbglv5xzz45cyqtp3txc5xodcx3ynkqijxvkly3te5n4uy6aokea"
   },
   "Host": {
     "LocalHttpPort": 7071,
     "CORS": "*"
   }
 }
+
+//"Node": {
+//  "PublicKey": "kzzmexbo3jyus6rmwbgl3ebysj2al2cdmcobxq2deqhqglxkkckq",
+//  "Port": 42066,
+//  "IpAddress": "134.209.180.20",
+//  "PfxFileName": "mycert.pfx",
+//  "SslCertPassword": "test",
+//  "NodePassword": "test",
+//  "WebAddress": "http://134.209.180.20:5005"
+//}

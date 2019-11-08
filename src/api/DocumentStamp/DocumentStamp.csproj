@@ -8,17 +8,12 @@
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="Function\VerifyStampDocument.cs" />
-    <Compile Remove="Helper\AutoFacHelper.cs" />
     <Compile Remove="Startup.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Remove="mycert.pfx" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="config.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="mycert.pfx">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
