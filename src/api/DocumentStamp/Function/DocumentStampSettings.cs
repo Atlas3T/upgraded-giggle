@@ -1,4 +1,5 @@
 using System;
+using System.Configuration;
 using System.IO;
 using System.Threading.Tasks;
 using Catalyst.Abstractions.Types;
@@ -26,7 +27,7 @@ namespace DocumentStamp.Function
 
             try
             {
-                var keyStore = new InMemoryKeyStore(new FfiWrapper());
+                var keyStore = new InMemoryKeyStore(new FfiWrapper(), Environment.GetEnvironmentVariable("FunctionPrivateKey"));
                 var privateKey = keyStore.KeyStoreDecrypt(KeyRegistryTypes.DefaultKey);
                 var publicKey = privateKey.GetPublicKey();
 

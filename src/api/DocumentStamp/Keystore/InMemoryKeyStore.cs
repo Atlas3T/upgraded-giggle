@@ -10,16 +10,17 @@ namespace DocumentStamp.Keystore
 {
     public sealed class InMemoryKeyStore : KeyStoreService, IKeyStore
     {
+        private string _privateKey;
         private ICryptoContext _cryptoContext;
-        public InMemoryKeyStore(ICryptoContext cryptoContext)
+        public InMemoryKeyStore(ICryptoContext cryptoContext, string privateKey)
         {
             _cryptoContext = cryptoContext;
+            _privateKey = privateKey;
         }
 
         public IPrivateKey KeyStoreDecrypt(KeyRegistryTypes keyIdentifier)
         {
-            var privateKeyBase32 = "tbglv5xzz45cyqtp3txc5xodcx3ynkqijxvkly3te5n4uy6aokea";
-            var privateKeyBytes = privateKeyBase32.FromBase32();
+            var privateKeyBytes = _privateKey.FromBase32();
             return _cryptoContext.GetPrivateKeyFromBytes(privateKeyBytes);
         }
 
