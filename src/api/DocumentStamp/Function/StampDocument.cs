@@ -1,13 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.IO;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Catalyst.Abstractions.IO.Observers;
-using Catalyst.Abstractions.Rpc;
 using Catalyst.Abstractions.Types;
 using Catalyst.Core.Lib.Cryptography;
 using Catalyst.Core.Lib.Extensions;
@@ -17,8 +15,6 @@ using Catalyst.Core.Lib.IO.Messaging.Dto;
 using Catalyst.Core.Lib.P2P;
 using Catalyst.Core.Lib.Rpc.IO.Messaging.Correlation;
 using Catalyst.Core.Lib.Util;
-using Catalyst.Core.Modules.Cryptography.BulletProofs;
-using Catalyst.Core.Modules.Hashing;
 using Catalyst.Core.Modules.KeySigner;
 using Catalyst.Core.Modules.Rpc.Client;
 using Catalyst.Core.Modules.Rpc.Client.IO.Observers;
@@ -28,7 +24,6 @@ using DocumentStamp.Helper;
 using DocumentStamp.Http.Request;
 using DocumentStamp.Http.Response;
 using DocumentStamp.Keystore;
-using DocumentStamp.Model;
 using DocumentStamp.Validator;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -40,7 +35,6 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Serilog;
 using TheDotNetLeague.MultiFormats.MultiBase;
-using TheDotNetLeague.MultiFormats.MultiHash;
 
 namespace DocumentStamp.Function
 {
@@ -74,12 +68,8 @@ namespace DocumentStamp.Function
                 var azure_root = $"{Environment.GetEnvironmentVariable("HOME")}/site/wwwroot";
                 var actual_root = local_root ?? azure_root;
 
-                var logger = new LoggerConfiguration().WriteTo.Debug(Serilog.Events.LogEventLevel.Debug).CreateLogger();
-
-                var cryptoContext = new FfiWrapper();
-
-                var hashProvider = new HashProvider(HashingAlgorithm.GetAlgorithmMetadata("blake2b-256"));
-
+                using var logger = new LoggerConfiguration().WriteTo.Debug(Serilog.Events.LogEventLevel.Debug).CreateLogger();
+                var cryptoContext = CryptoHelper.GetCryptoContext();
                 var keyStore = new InMemoryKeyStore(cryptoContext, Environment.GetEnvironmentVariable("FunctionPrivateKey"));
 
                 var keyRegistry = new KeyRegistry();
@@ -107,26 +97,6 @@ namespace DocumentStamp.Function
                 var peerSettingsConfig = new ConfigurationBuilder().AddInMemoryCollection(peerConfig).Build();
                 var peerSettings = new PeerSettings(peerSettingsConfig);
 
-                var nodeRpcClientChannelFactory =
-                    new RpcClientChannelFactory(keySigner, messageCorrelationManager, peerIdValidator, peerSettings, 0);
-
-                var eventLoopGroupFactoryConfiguration = new EventLoopGroupFactoryConfiguration
-                {
-                    TcpClientHandlerWorkerThreads = 4
-                };
-
-                var tcpClientEventLoopGroupFactory = new TcpClientEventLoopGroupFactory(eventLoopGroupFactoryConfiguration);
-
-                var handlers = new List<IRpcResponseObserver>
-                {
-                    new BroadcastRawTransactionResponseObserver(logger)
-                };
-
-                var rpcClientFactory = new RpcClientFactory(nodeRpcClientChannelFactory, tcpClientEventLoopGroupFactory, handlers);
-
-                var certBytes = File.ReadAllBytes(Path.Combine(actual_root, Environment.GetEnvironmentVariable("NodePfxFileName")));
-                var certificate = new X509Certificate2(certBytes, Environment.GetEnvironmentVariable("NodeSslCertPassword"), X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable);
-
                 var rpcClientSettings = new RpcClientSettings
                 {
                     HostAddress = IPAddress.Parse(Environment.GetEnvironmentVariable("NodeIpAddress")),
@@ -134,7 +104,9 @@ namespace DocumentStamp.Function
                     PublicKey = Environment.GetEnvironmentVariable("NodePublicKey")
                 };
 
-                var recipientPeer = rpcClientSettings.PublicKey.BuildPeerIdFromBase32Key(rpcClientSettings.HostAddress, rpcClientSettings.Port);
+                var recipientPeer =
+                    rpcClientSettings.PublicKey.BuildPeerIdFromBase32Key(rpcClientSettings.HostAddress,
+                        rpcClientSettings.Port);
 
                 var receiverPublicKey =
                     cryptoContext.GetPublicKeyFromBytes(stampDocumentRequest.PublicKey.FromBase32());
@@ -147,11 +119,37 @@ namespace DocumentStamp.Function
                 var protocolMessage =
                     transaction.ToProtocolMessage(peerSettings.PeerId, CorrelationId.GenerateCorrelationId());
 
+                var nodeRpcClientChannelFactory =
+                    new RpcClientChannelFactory(keySigner, messageCorrelationManager, peerIdValidator, peerSettings, 0);
+
+                var eventLoopGroupFactoryConfiguration = new EventLoopGroupFactoryConfiguration
+                {
+                    TcpClientHandlerWorkerThreads = 4
+                };
+
+                using var tcpClientEventLoopGroupFactory = new TcpClientEventLoopGroupFactory(eventLoopGroupFactoryConfiguration);
+                var handlers = new List<IRpcResponseObserver>
+                    {
+                        new BroadcastRawTransactionResponseObserver(logger)
+                    };
+
+                var rpcClientFactory = new RpcClientFactory(nodeRpcClientChannelFactory,
+                    tcpClientEventLoopGroupFactory, handlers);
+
+                var certBytes = File.ReadAllBytes(Path.Combine(actual_root,
+                    Environment.GetEnvironmentVariable("NodePfxFileName")));
+
+                using var certificate = new X509Certificate2(certBytes,
+                    Environment.GetEnvironmentVariable("NodeSslCertPassword"),
+                    X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet |
+                    X509KeyStorageFlags.Exportable);
+
                 var autoResetEvent = new AutoResetEvent(false);
+
                 ResponseCode? responseCode = null;
 
-                var rpcClient = await rpcClientFactory.GetClient(certificate, rpcClientSettings).ConfigureAwait(false);
-
+                using var rpcClient = await rpcClientFactory.GetClient(certificate, rpcClientSettings)
+                    .ConfigureAwait(false);
                 //Connect to the node
                 await rpcClient.StartAsync();
                 log.LogInformation($"Connected to node {rpcClient.Channel.Active}");
@@ -165,15 +163,19 @@ namespace DocumentStamp.Function
 
                 //Send transaction to node
                 log.LogInformation($"Sending transaction to node");
-                await rpcClient.Channel.WriteAsync(new MessageDto(protocolMessage, recipientPeer)).ConfigureAwait(false);
+                await rpcClient.Channel.WriteAsync(new MessageDto(protocolMessage, recipientPeer))
+                    .ConfigureAwait(false);
 
                 //Wait for node response then generate azure function response
                 log.LogInformation($"Waiting for response");
                 var signaled = autoResetEvent.WaitOne(TimeSpan.FromSeconds(10));
                 if (!signaled)
                 {
-                    return new BadRequestObjectResult(new Result<string>(false, "Timed out waiting for response from node."));
+                    autoResetEvent.Dispose();
+                    return new BadRequestObjectResult(new Result<string>(false,
+                        "Timed out waiting for response from node."));
                 }
+                autoResetEvent.Dispose();
 
                 if (responseCode != ResponseCode.Successful)
                 {
@@ -182,8 +184,8 @@ namespace DocumentStamp.Function
                 }
 
                 var stampDocumentResponse =
-                    HttpHelper.GetStampDocument(Environment.GetEnvironmentVariable("NodeWebAddress"),
-                        transaction.Transaction.Signature.RawBytes.ToByteArray().ToBase32().ToUpperInvariant());
+            HttpHelper.GetStampDocument(Environment.GetEnvironmentVariable("NodeWebAddress"),
+                transaction.Transaction.Signature.RawBytes.ToByteArray().ToBase32().ToUpperInvariant());
                 return new OkObjectResult(new Result<StampDocumentResponse>(true, stampDocumentResponse));
             }
             catch (InvalidDataException ide)

@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Catalyst.Abstractions.Types;
 using Catalyst.Core.Modules.Cryptography.BulletProofs;
+using DocumentStamp.Helper;
 using DocumentStamp.Http.Response;
 using DocumentStamp.Keystore;
 using Microsoft.AspNetCore.Http;
@@ -27,7 +28,7 @@ namespace DocumentStamp.Function
 
             try
             {
-                var keyStore = new InMemoryKeyStore(new FfiWrapper(), Environment.GetEnvironmentVariable("FunctionPrivateKey"));
+                var keyStore = new InMemoryKeyStore(CryptoHelper.GetCryptoContext(), Environment.GetEnvironmentVariable("FunctionPrivateKey"));
                 var privateKey = keyStore.KeyStoreDecrypt(KeyRegistryTypes.DefaultKey);
                 var publicKey = privateKey.GetPublicKey();
 
