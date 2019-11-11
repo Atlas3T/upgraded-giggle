@@ -17,13 +17,3 @@
     "CORS": "*"
   }
 }
-
-//"Node": {
-//  "PublicKey": "kzzmexbo3jyus6rmwbgl3ebysj2al2cdmcobxq2deqhqglxkkckq",
-//  "Port": 42066,
-//  "IpAddress": "134.209.180.20",
-//  "PfxFileName": "mycert.pfx",
-//  "SslCertPassword": "test",
-//  "NodePassword": "test",
-//  "WebAddress": "http://134.209.180.20:5005"
-//}
