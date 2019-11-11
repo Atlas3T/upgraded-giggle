@@ -211,7 +211,7 @@ export default {
     async sendProof() {
       this.visible = true;
 
-      const tx = await this.$axios.post('http://192.168.1.232:7071/api/StampDocument', {
+      const tx = await this.$axios.post('https://documentstamp.azurewebsites.net/api/StampDocument?code=O5ra0Gt/pfYFVXfjTVBm70FOOoEb4RUQG2BMidcZmpcWnjRziha3WA==', {
         hash: this.file.base32Hash,
         publicKey: this.user.pubKey,
         signature: this.file.signature,
@@ -230,7 +230,7 @@ export default {
       if (!this.$refs.proofId.hasError) {
         this.file.verify = true;
         try {
-          const tx = await this.$axios.get(`http://192.168.1.232:7071/api/VerifyStampDocument/${this.proofId}`);
+          const tx = await this.$axios.get(`https://documentstamp.azurewebsites.net/api/VerifyStampDocument/${this.proofId}?code=hC362dyPjv3OwrNNL3XS1JDZs9CEzef/azXMVkyK1Uh3OyWcpdJ6Cg==`);
 
           if (tx.data.success) {
             const fileHash = tx.data.value.userProof.hash;
