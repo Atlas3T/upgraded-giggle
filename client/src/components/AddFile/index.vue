@@ -8,33 +8,33 @@
     :factory="hashFile"
   >
     <template v-slot:list="scope">
-      <div
-        v-if="scope.files < 1"
-        class="q-pa-xl flex flex-center column text-center"
-        style="height: -webkit-fill-available;"
-      >
-        <q-icon
-          name="backup"
-          class="text-grey-4"
-          style="font-size: 100px"
-        />
+      <div v-if="scope.files < 1">
+        <div
 
-        <span
-          v-if="mode==='sign'"
-          class="text-h6 text-weight-bold text-grey-6"
-        >{{ $t('dragDrop') }} {{ $t('sign') }}</span>
-        <span
-          v-else
-          class="text-h6 text-weight-bold text-grey-6"
-        >{{ $t('dragDrop') }} {{ $t('verify') }}</span>
+          class="q-mt-xl q-pa-xl flex flex-center column text-center"
+        >
+          <q-icon
+            name="backup"
+            class="text-grey-4"
+            style="font-size: 100px"
+          />
 
-        <span class="text-body1 text-grey-7">
-          {{ $t('or') }} <span
-            class="text-blue"
-            @click="scope.pickFiles()"
-          >{{ $t('browse') }}</span> {{ $t('chooseFile') }}</span>
+          <span
+            v-if="mode==='sign'"
+            class="text-h6 text-weight-bold text-grey-6"
+          >{{ $t('dragDrop') }} {{ $t('sign') }}</span>
+          <span
+            v-else
+            class="text-h6 text-weight-bold text-grey-6"
+          >{{ $t('dragDrop') }} {{ $t('verify') }}</span>
+
+          <span class="text-body1 text-grey-7">
+            {{ $t('or') }} <span
+              class="text-blue"
+              @click="scope.pickFiles()"
+            >{{ $t('browse') }}</span> {{ $t('chooseFile') }}</span>
+        </div>
       </div>
-
       <div
         v-else
       >
@@ -74,7 +74,7 @@
               :label="$t('proofId')"
               lazy-rules
               :rules="[ val => val && val.length > 102
-                && val.length < 104 || $t('invalidProofId')]"
+                && val.length < 105 || $t('invalidProofId')]"
             >
               <template v-slot:append>
                 <q-btn
@@ -163,12 +163,6 @@ export default {
     },
   },
 
-  watch: {
-    tab() {
-      this.confirmed = false;
-    },
-  },
-
   methods: {
     getSize(bytes) {
       const decimals = 2;
@@ -211,7 +205,7 @@ export default {
     async sendProof() {
       this.visible = true;
 
-      const tx = await this.$axios.post('https://documentstamp.azurewebsites.net/api/StampDocument?code=O5ra0Gt/pfYFVXfjTVBm70FOOoEb4RUQG2BMidcZmpcWnjRziha3WA==', {
+      const tx = await this.$axios.post(`${process.env.API}StampDocument${process.env.STAMP_KEY}`, {
         hash: this.file.base32Hash,
         publicKey: this.user.pubKey,
         signature: this.file.signature,
@@ -229,8 +223,9 @@ export default {
       this.$refs.proofId.validate();
       if (!this.$refs.proofId.hasError) {
         this.file.verify = true;
+        const txId = this.proofId.replace(/\s+/g, '');
         try {
-          const tx = await this.$axios.get(`https://documentstamp.azurewebsites.net/api/VerifyStampDocument/${this.proofId}?code=hC362dyPjv3OwrNNL3XS1JDZs9CEzef/azXMVkyK1Uh3OyWcpdJ6Cg==`);
+          const tx = await this.$axios.get(`${process.env.API}VerifyStampDocument/${txId.toUpperCase()}${process.env.VERIFY_KEY}`);
 
           if (tx.data.success) {
             const fileHash = tx.data.value.userProof.hash;
@@ -262,7 +257,7 @@ export default {
 <style lang="scss">
 .q-uploader {
   width: inherit;
-  max-height: inherit;
+  max-height:inherit;
   min-width: 25rem;
   min-height: 25rem;
 }
