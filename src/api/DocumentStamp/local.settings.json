@@ -3,10 +3,10 @@
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "dotnet",
-    "NodePublicKey": "kzzmexbo3jyus6rmwbgl3ebysj2al2cdmcobxq2deqhqglxkkckq",
-    "NodeIpAddress": "134.209.180.20",
+    "NodePublicKey": "gm2u2cqtutmgzstjtof4pu2tnp73m5vhiomgixqcpvgyr5mfxwfa",
+    "NodeIpAddress": "127.0.0.1",
     "NodePort": 42066,
-    "NodeWebAddress": "http://134.209.180.20:5005",
+    "NodeWebAddress": "http://127.0.0.1:5005",
     "NodePfxFileName": "mycert.pfx",
     "NodeSslCertPassword": "test",
     "NodePassword": "test",
