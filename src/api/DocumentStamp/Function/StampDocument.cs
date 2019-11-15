@@ -66,6 +66,10 @@ namespace DocumentStamp.Function
                 var stampDocumentRequest =
                     ModelValidator.ValidateAndConvert<StampDocumentRequest>(await req.ReadAsStringAsync());
 
+                stampDocumentRequest.PublicKey = stampDocumentRequest.PublicKey.ToLowerInvariant();
+                stampDocumentRequest.Signature = stampDocumentRequest.Signature.ToLowerInvariant();
+                stampDocumentRequest.Hash = stampDocumentRequest.Hash.ToLowerInvariant();
+
                 //Verify the signature of the stamp document request
                 var verifyResult = SignatureHelper.VerifyStampDocumentRequest(stampDocumentRequest);
                 if (!verifyResult)
@@ -94,15 +98,16 @@ namespace DocumentStamp.Function
                     throw new InvalidDataException("DocumentStamp failed to send");
                 }
 
-                var stampDocumentResponse = new StampDocumentResponse();
-                stampDocumentResponse.StampDocumentProof =
-                    HttpHelper.GetStampDocument(_restClient,
-                        transaction.Signature.RawBytes.ToByteArray().ToBase32().ToUpperInvariant());
-                stampDocumentResponse.FileName = stampDocumentRequest.FileName;
+                var transactionId = transaction.Signature.RawBytes.ToByteArray().ToBase32().ToLowerInvariant();
+                var stampDocumentResponse = new StampDocumentResponse
+                {
+                    StampDocumentProof = HttpHelper.GetStampDocument(_restClient, transactionId),
+                    FileName = stampDocumentRequest.FileName
+                };
 
                 var documentStampMetaData = new DocumentStampMetaData
                 {
-                    Id = transaction.Signature.RawBytes.ToByteArray().ToBase32().ToLowerInvariant(),
+                    Id = transactionId,
                     FileName = stampDocumentRequest.FileName,
                     PublicKey = stampDocumentRequest.PublicKey,
                     StampDocumentProof = stampDocumentResponse.StampDocumentProof,

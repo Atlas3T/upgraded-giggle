@@ -37,13 +37,13 @@ namespace DocumentStamp.Helper
 
             var stampDocumentProof = new StampDocumentProof
             {
-                TransactionId = transactionBroadcastDao.Id.ToUpper(),
+                TransactionId = transactionBroadcastDao.Id.ToLowerInvariant(),
                 TimeStamp = transactionBroadcastDao.TimeStamp,
                 UserProof = userProof,
                 NodeProof = new NodeProof
                 {
-                    PublicKey = smartContract.Base.SenderPublicKey.ToUpper(),
-                    Signature = transactionBroadcastDao.Signature.RawBytes.ToUpper()
+                    PublicKey = smartContract.Base.SenderPublicKey.ToLowerInvariant(),
+                    Signature = transactionBroadcastDao.Signature.RawBytes.ToLowerInvariant()
                 }
             };
             return stampDocumentProof;

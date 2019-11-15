@@ -43,17 +43,17 @@ namespace DocumentStamp.Function
 
             try
             {
-                var documentStamp = _documentStampMetaDataRepository.Find(x => x.Id == txId.ToLower() && x.User == userId);
-                if (documentStamp == null)
-                {
-                    return new BadRequestObjectResult(new Result<string>(false, "Could not find document under your user account"));
-                }
-
+                var metaData = _documentStampMetaDataRepository.Find(x => x.Id == txId.ToLower() && x.User == userId);
                 var stampDocumentResponse = new StampDocumentResponse
                 {
-                    StampDocumentProof = documentStamp.StampDocumentProof,
-                    FileName = documentStamp.FileName
+                    StampDocumentProof = HttpHelper.GetStampDocument(_restClient, txId)
                 };
+
+                if (metaData != null)
+                {
+                    stampDocumentResponse.FileName = metaData.FileName;
+                }
+
                 return new OkObjectResult(new Result<StampDocumentResponse>(true, stampDocumentResponse));
             }
             catch (InvalidDataException ide)
