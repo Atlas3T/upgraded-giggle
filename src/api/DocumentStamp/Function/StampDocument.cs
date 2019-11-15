@@ -1,18 +1,19 @@
 using System;
+using System.IdentityModel.Tokens.Jwt;
 using System.IO;
+using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Catalyst.Abstractions.Cryptography;
 using Catalyst.Core.Lib.DAO;
 using Catalyst.Core.Lib.Extensions;
-using Catalyst.Core.Lib.IO.Messaging.Correlation;
-using Catalyst.Core.Lib.P2P;
 using Catalyst.Core.Modules.Cryptography.BulletProofs;
-using Catalyst.Protocol.Cryptography;
-using Catalyst.Protocol.Network;
+using Catalyst.Modules.Repository.CosmosDb;
 using Catalyst.Protocol.Peer;
 using DocumentStamp.Helper;
 using DocumentStamp.Http.Request;
 using DocumentStamp.Http.Response;
+using DocumentStamp.Model;
 using DocumentStamp.Validator;
 using Google.Protobuf;
 using Microsoft.AspNetCore.Http;
@@ -33,21 +34,30 @@ namespace DocumentStamp.Function
         private readonly PeerId _peerId;
         private readonly FfiWrapper _cryptoContext;
         private readonly IPrivateKey _privateKey;
+        private readonly CosmosDbRepository<DocumentStampMetaData> _documentStampMetaDataRepository;
 
-        public StampDocument(RestClient restClient, PeerId peerId, FfiWrapper cryptoContext, IPrivateKey privateKey)
+        public StampDocument(RestClient restClient, PeerId peerId, FfiWrapper cryptoContext, IPrivateKey privateKey, CosmosDbRepository<DocumentStampMetaData> documentStampMetaDataRepository)
         {
             _restClient = restClient;
             _peerId = peerId;
             _cryptoContext = cryptoContext;
             _privateKey = privateKey;
+            _documentStampMetaDataRepository = documentStampMetaDataRepository;
         }
 
         [FunctionName("StampDocument")]
         public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)]
             HttpRequest req,
+            ClaimsPrincipal principal,
             Microsoft.Extensions.Logging.ILogger log)
         {
+#if (DEBUG)
+            principal = JwtDebugTokenHelper.GenerateClaimsPrincipal();
+#endif
+
+            var userId = principal.Claims.First(x => x.Type == "sub").Value;
+
             log.LogInformation("StampDocument processing a request");
 
             try
@@ -79,14 +89,28 @@ namespace DocumentStamp.Function
                 request.AddQueryParameter("transactionBroadcastProtocolBase64", Convert.ToBase64String(protocolMessage.ToByteArray()));
 
                 var response = _restClient.Execute<TransactionBroadcastDao>(request);
-                if (response.Data == null)
+                if (!response.IsSuccessful)
                 {
-                    throw new InvalidDataException("DocumentStamp does not exist under txId");
+                    throw new InvalidDataException("DocumentStamp failed to send");
                 }
 
-                var stampDocumentResponse =
+                var stampDocumentResponse = new StampDocumentResponse();
+                stampDocumentResponse.StampDocumentProof =
                     HttpHelper.GetStampDocument(_restClient,
                         transaction.Signature.RawBytes.ToByteArray().ToBase32().ToUpperInvariant());
+                stampDocumentResponse.FileName = stampDocumentRequest.FileName;
+
+                var documentStampMetaData = new DocumentStampMetaData
+                {
+                    Id = transaction.Signature.RawBytes.ToByteArray().ToBase32().ToLowerInvariant(),
+                    FileName = stampDocumentRequest.FileName,
+                    PublicKey = stampDocumentRequest.PublicKey,
+                    StampDocumentProof = stampDocumentResponse.StampDocumentProof,
+                    User = userId
+                };
+
+                _documentStampMetaDataRepository.Add(documentStampMetaData);
+
                 return new OkObjectResult(new Result<StampDocumentResponse>(true, stampDocumentResponse));
             }
             catch (InvalidDataException ide)

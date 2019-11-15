@@ -21,7 +21,7 @@ namespace DocumentStamp.Function
 {
     //public class GetStamps
     //{
-    //    [FunctionName("GetStamps")]
+    //    [FunctionName("GetStamps2")]
     //    public async Task<IActionResult> Run(
     //        [HttpTrigger(AuthorizationLevel.Function, "get", Route = "GetStamps/{publicKey}")]
     //        string publicKey,

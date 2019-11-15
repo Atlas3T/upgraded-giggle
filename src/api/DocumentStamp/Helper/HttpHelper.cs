@@ -12,7 +12,7 @@ namespace DocumentStamp.Helper
 {
     public static class HttpHelper
     {
-        public static StampDocumentResponse GetStampDocument(RestClient client, string txId)
+        public static StampDocumentProof GetStampDocument(RestClient client, string txId)
         {
             var request = new RestRequest("/api/Mempool/Get/{id}", Method.GET);
             request.AddUrlSegment("id", txId);
@@ -35,7 +35,7 @@ namespace DocumentStamp.Helper
                 throw new InvalidDataException("Could not verify signature of document stamp request");
             }
 
-            var stampDocumentResponse = new StampDocumentResponse
+            var stampDocumentProof = new StampDocumentProof
             {
                 TransactionId = transactionBroadcastDao.Id.ToUpper(),
                 TimeStamp = transactionBroadcastDao.TimeStamp,
@@ -46,7 +46,7 @@ namespace DocumentStamp.Helper
                     Signature = transactionBroadcastDao.Signature.RawBytes.ToUpper()
                 }
             };
-            return stampDocumentResponse;
+            return stampDocumentProof;
         }
     }
 }

@@ -16,8 +16,10 @@ using Catalyst.Core.Modules.KeySigner;
 using Catalyst.Core.Modules.Rpc.Client;
 using Catalyst.Core.Modules.Rpc.Client.IO.Observers;
 using Catalyst.Core.Modules.Rpc.Client.IO.Transport.Channels;
+using Catalyst.Modules.Repository.CosmosDb;
 using DocumentStamp;
 using DocumentStamp.Keystore;
+using DocumentStamp.Model;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
@@ -55,12 +57,15 @@ namespace DocumentStamp
                 recptPublicKey.BuildPeerIdFromBase32Key(recptIp,
                     recptPort);
 
+            var documentStampMetaDataRepository = new CosmosDbRepository<DocumentStampMetaData>("https://localhost:8081", "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==", "mempool", true);
+
             var restClient = new RestClient(Environment.GetEnvironmentVariable("NodeWebAddress"));
             builder.Services.AddSingleton(restClient);
             builder.Services.AddSingleton(peerId);
             builder.Services.AddSingleton(cryptoContext);
             builder.Services.AddSingleton(privateKey);
             builder.Services.AddSingleton(recipientPeer);
+            builder.Services.AddSingleton(documentStampMetaDataRepository);
         }
     }
 }

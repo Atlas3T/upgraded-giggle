@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using Catalyst.Core.Lib.DAO;
+using Catalyst.Modules.Repository.CosmosDb;
 using DocumentStamp.Helper;
 using DocumentStamp.Http.Response;
 using DocumentStamp.Model;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
@@ -20,17 +23,28 @@ namespace DocumentStamp.Function
     public class GetStamps
     {
         private readonly RestClient _restClient;
-        public GetStamps(RestClient restClient)
+        private readonly CosmosDbRepository<DocumentStampMetaData> _documentStampMetaDataRepository;
+        public GetStamps(RestClient restClient, CosmosDbRepository<DocumentStampMetaData> documentStampMetaDataRepository)
         {
             _restClient = restClient;
+            _documentStampMetaDataRepository = documentStampMetaDataRepository;
         }
 
         [FunctionName("GetStamps")]
         public async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = "GetStamps/{publicKey}")]
+            HttpRequest req,
+            ClaimsPrincipal principal,
             string publicKey,
             ILogger log)
         {
+#if (DEBUG)
+            principal = JwtDebugTokenHelper.GenerateClaimsPrincipal();
+#endif
+
+            var userId = principal.Claims.First(x => x.Type == "sub").Value;
+
+            publicKey = publicKey.ToLowerInvariant();
             log.LogInformation("GetStamps processing a request");
 
             try
@@ -61,19 +75,8 @@ namespace DocumentStamp.Function
                             throw new InvalidDataException("Could not verify signature of document stamp request");
                         }
 
-                        var stampDocument = new StampDocumentResponse
-                        {
-                            TransactionId = transactionBroadcastDao.Id.ToUpper(),
-                            TimeStamp = transactionBroadcastDao.TimeStamp,
-                            UserProof = userProof,
-                            NodeProof = new NodeProof
-                            {
-                                PublicKey = smartContract.Base.SenderPublicKey.ToUpper(),
-                                Signature = transactionBroadcastDao.Signature.RawBytes.ToUpper()
-                            }
-                        };
-
-                        stampedDocumentList.Add(stampDocument);
+                        var documentStamp = _documentStampMetaDataRepository.FindAll(x => x.PublicKey == publicKey);
+                        stampedDocumentList = documentStamp.Select(x => new StampDocumentResponse() { FileName = x.FileName, StampDocumentProof = x.StampDocumentProof }).ToList();
                     }
                     catch (Exception exc)
                     {
