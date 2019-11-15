@@ -7,13 +7,20 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
+using RestSharp;
 
 namespace DocumentStamp.Function
 {
     public class VerifyStampDocument
     {
+        private readonly RestClient _restClient;
+        public VerifyStampDocument(RestClient restClient)
+        {
+            _restClient = restClient;
+        }
+
         [FunctionName("VerifyStampDocument")]
-        public static IActionResult Run(
+        public IActionResult Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = "VerifyStampDocument/{txId}")]
             HttpRequest req,
             string txId,
@@ -24,7 +31,7 @@ namespace DocumentStamp.Function
             try
             {
                 var stampDocumentResponse =
-                    HttpHelper.GetStampDocument(Environment.GetEnvironmentVariable("NodeWebAddress"), txId);
+                    HttpHelper.GetStampDocument(_restClient, txId);
                 return new OkObjectResult(new Result<StampDocumentResponse>(true, stampDocumentResponse));
             }
             catch (InvalidDataException ide)

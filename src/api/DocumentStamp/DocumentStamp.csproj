@@ -8,6 +8,10 @@
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Function\StampDocument2.cs" />
+    <Compile Remove="Startup2.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <None Remove="mycert.pfx" />
   </ItemGroup>
   <ItemGroup>
@@ -26,7 +30,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\submodules\Catalyst.Framework\src\Catalyst.Abstractions\Catalyst.Abstractions.csproj" />
-    <ProjectReference Include="..\submodules\Catalyst.Framework\src\Catalyst.Core.Lib\Catalyst.Core.Lib.csproj" />
     <ProjectReference Include="..\submodules\Catalyst.Framework\src\Catalyst.Core.Modules.Cryptography.BulletProofs\Catalyst.Core.Modules.Cryptography.BulletProofs.csproj" />
     <ProjectReference Include="..\submodules\Catalyst.Framework\src\Catalyst.Core.Modules.Hashing\Catalyst.Core.Modules.Hashing.csproj" />
     <ProjectReference Include="..\submodules\Catalyst.Framework\src\Catalyst.Core.Modules.KeySigner\Catalyst.Core.Modules.KeySigner.csproj" />

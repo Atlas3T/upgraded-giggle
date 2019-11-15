@@ -12,9 +12,8 @@ namespace DocumentStamp.Helper
 {
     public static class HttpHelper
     {
-        public static StampDocumentResponse GetStampDocument(string webAddress, string txId)
+        public static StampDocumentResponse GetStampDocument(RestClient client, string txId)
         {
-            var client = new RestClient($"{webAddress}");
             var request = new RestRequest("/api/Mempool/Get/{id}", Method.GET);
             request.AddUrlSegment("id", txId);
 

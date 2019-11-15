@@ -22,6 +22,7 @@ using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RestSharp;
 using Serilog;
 using TheDotNetLeague.MultiFormats.MultiBase;
 
@@ -33,15 +34,6 @@ namespace DocumentStamp
     {
         public override void Configure(IFunctionsHostBuilder builder)
         {
-            //Required or it will cause outofmemory exceptions on azure functions!
-            Environment.SetEnvironmentVariable("io.netty.allocator.type", "unpooled");
-
-            var local_root = Environment.GetEnvironmentVariable("AzureWebJobsScriptRoot");
-            var azure_root = $"{Environment.GetEnvironmentVariable("HOME")}/site/wwwroot";
-            var actual_root = local_root ?? azure_root;
-
-            var logger = new LoggerConfiguration().WriteTo.Debug(Serilog.Events.LogEventLevel.Debug)
-                 .CreateLogger();
             var cryptoContext = new FfiWrapper();
             var keyStore = new InMemoryKeyStore(cryptoContext,
                 Environment.GetEnvironmentVariable("FunctionPrivateKey"));
@@ -49,70 +41,23 @@ namespace DocumentStamp
             var keyRegistry = new KeyRegistry();
             var keySigner = new KeySigner(keyStore, cryptoContext, keyRegistry);
 
-            var memoryCacheOptions = new MemoryCacheOptions();
-            var memoryCache = new MemoryCache(memoryCacheOptions);
-            var changeTokenProvider = new TtlChangeTokenProvider(10000);
-            var messageCorrelationManager =
-                new RpcMessageCorrelationManager(memoryCache, logger, changeTokenProvider);
-            var peerIdValidator = new PeerIdValidator(cryptoContext);
-
             var privateKey = keyRegistry.GetItemFromRegistry(KeyRegistryTypes.DefaultKey);
             var publicKey = privateKey.GetPublicKey();
             var publicKeyBase32 = publicKey.Bytes.ToBase32();
 
-            var peerConfig = new Dictionary<string, string>
-                {
-                    {"CatalystNodeConfiguration:Peer:Network", "Devnet"},
-                    {"CatalystNodeConfiguration:Peer:PublicKey", publicKeyBase32},
-                    {"CatalystNodeConfiguration:Peer:Port", "42076"},
-                    {"CatalystNodeConfiguration:Peer:PublicIpAddress", IPAddress.Loopback.ToString()},
-                    {"CatalystNodeConfiguration:Peer:BindAddress", IPAddress.Loopback.ToString()}
-                };
+            var peerId = publicKeyBase32.BuildPeerIdFromBase32Key(IPAddress.Loopback, 42076);
 
-            var peerSettingsConfig = new ConfigurationBuilder().AddInMemoryCollection(peerConfig).Build();
-            var peerSettings = new PeerSettings(peerSettingsConfig);
-
-            var rpcClientSettings = new RpcClientSettings
-            {
-                HostAddress = IPAddress.Parse(Environment.GetEnvironmentVariable("NodeIpAddress")),
-                Port = int.Parse(Environment.GetEnvironmentVariable("NodePort")),
-                PublicKey = Environment.GetEnvironmentVariable("NodePublicKey")
-            };
+            var recptIp = IPAddress.Parse(Environment.GetEnvironmentVariable("NodeIpAddress"));
+            var recptPort = int.Parse(Environment.GetEnvironmentVariable("NodePort"));
+            var recptPublicKey = Environment.GetEnvironmentVariable("NodePublicKey");
 
             var recipientPeer =
-                rpcClientSettings.PublicKey.BuildPeerIdFromBase32Key(rpcClientSettings.HostAddress,
-                    rpcClientSettings.Port);
+                recptPublicKey.BuildPeerIdFromBase32Key(recptIp,
+                    recptPort);
 
-            var nodeRpcClientChannelFactory =
-                new RpcClientChannelFactory(keySigner, messageCorrelationManager, peerIdValidator, peerSettings, 0);
-
-            var eventLoopGroupFactoryConfiguration = new EventLoopGroupFactoryConfiguration
-            {
-                TcpClientHandlerWorkerThreads = 4
-            };
-
-            var tcpClientEventLoopGroupFactory =
-                new TcpClientEventLoopGroupFactory(eventLoopGroupFactoryConfiguration);
-            var handlers = new List<IRpcResponseObserver>
-                {
-                    new BroadcastRawTransactionResponseObserver(logger)
-                };
-
-            var rpcClientFactory = new RpcClientFactory(nodeRpcClientChannelFactory,
-                tcpClientEventLoopGroupFactory, handlers);
-
-            var certBytes = File.ReadAllBytes(Path.Combine(actual_root,
-                Environment.GetEnvironmentVariable("NodePfxFileName")));
-
-            var certificate = new X509Certificate2(certBytes,
-                Environment.GetEnvironmentVariable("NodeSslCertPassword"),
-                X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet |
-                X509KeyStorageFlags.Exportable);
-
-            var rpcClient = rpcClientFactory.GetClient(certificate, rpcClientSettings).Result;
-
-            builder.Services.AddSingleton(rpcClient);
-            builder.Services.AddSingleton(peerSettings);
+            var restClient = new RestClient(Environment.GetEnvironmentVariable("NodeWebAddress"));
+            builder.Services.AddSingleton(restClient);
+            builder.Services.AddSingleton(peerId);
             builder.Services.AddSingleton(cryptoContext);
             builder.Services.AddSingleton(privateKey);
             builder.Services.AddSingleton(recipientPeer);
