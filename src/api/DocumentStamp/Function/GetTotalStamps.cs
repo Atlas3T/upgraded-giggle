@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Claims;
@@ -15,24 +14,21 @@ using Microsoft.Extensions.Logging;
 
 namespace DocumentStamp.Function
 {
-    public class GetStamps
+    public class GetTotalStamps
     {
         private readonly CosmosDbRepository<DocumentStampMetaData> _documentStampMetaDataRepository;
-        public GetStamps(CosmosDbRepository<DocumentStampMetaData> documentStampMetaDataRepository)
+        public GetTotalStamps(CosmosDbRepository<DocumentStampMetaData> documentStampMetaDataRepository)
         {
             _documentStampMetaDataRepository = documentStampMetaDataRepository;
         }
 
-        [FunctionName("GetStamps")]
+        [FunctionName("GetTotalStamps")]
         public IActionResult Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "GetStamps/{page}/{count}")]
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = null)]
             HttpRequest req,
             ClaimsPrincipal principal,
-            int page,
-            int count,
             ILogger log)
         {
-            page--;
             string userId;
 #if (DEBUG)
             principal = JwtDebugTokenHelper.GenerateClaimsPrincipal();
@@ -41,14 +37,12 @@ namespace DocumentStamp.Function
             userId = principal.Claims.First(x => x.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
 #endif
 
-            log.LogInformation("GetStamps processing a request");
+            log.LogInformation("GetTotalStamps processing a request");
 
             try
             {
-                var documentStamp = _documentStampMetaDataRepository.FindAll(x => x.User == userId).Skip(page * count).Take(count).OrderByDescending(x => x.StampDocumentProof.TimeStamp);
-                var stampedDocumentList = documentStamp.Select(x => new StampDocumentResponse() { FileName = x.FileName, StampDocumentProof = x.StampDocumentProof }).ToList();
-
-                return new OkObjectResult(new Result<IEnumerable<StampDocumentResponse>>(true, stampedDocumentList));
+                var documentStampCount = _documentStampMetaDataRepository.Count(x => x.User == userId);
+                return new OkObjectResult(new Result<int>(true, documentStampCount));
             }
             catch (InvalidDataException ide)
             {

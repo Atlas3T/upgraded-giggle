@@ -11,8 +11,8 @@
     "NodeSslCertPassword": "test",
     "NodePassword": "test",
     "FunctionPrivateKey": "tbglv5xzz45cyqtp3txc5xodcx3ynkqijxvkly3te5n4uy6aokea",
-    "CosmosDBServer": "https://document-stamp.documents.azure.com:443/",
-    "AuthorizationKey": "wo2nY8U9oFDT1C1WNZbZfBIuELtkwMojKPOdX7MspWPHXK8TSTeafTkYKOgCK5DeqjQIWMeOuJK4Z7bTdvYoPg==",
+    "CosmosDBServer": "https://localhost:8081",
+    "AuthorizationKey": "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==",
     "DatabaseId": "DocumentStamp"
   },
   "Host": {

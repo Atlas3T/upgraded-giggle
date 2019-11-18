@@ -123,11 +123,13 @@ namespace DocumentStamp.Function
             }
             catch (InvalidDataException ide)
             {
+                log.LogError(ide.ToString());
                 return new BadRequestObjectResult(new Result<string>(false,
                     ide.Message));
             }
             catch (Exception exc)
             {
+                log.LogError(exc.ToString());
                 return new BadRequestObjectResult(new Result<string>(false,
                     exc.Message));
             }
