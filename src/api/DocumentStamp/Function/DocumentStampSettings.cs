@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Threading.Tasks;
 using Catalyst.Abstractions.Cryptography;
 using DocumentStamp.Http.Response;
 using Microsoft.AspNetCore.Http;
@@ -21,7 +20,7 @@ namespace DocumentStamp.Function
         }
 
         [FunctionName("DocumentStampSettings")]
-        public async Task<IActionResult> Run(
+        public IActionResult Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = null)]
             HttpRequest req,
             ILogger log)

@@ -1,5 +1,4 @@
 using System;
-using System.IdentityModel.Tokens.Jwt;
 using System.IO;
 using System.Linq;
 using System.Security.Claims;
@@ -27,7 +26,7 @@ using TheDotNetLeague.MultiFormats.MultiBase;
 
 namespace DocumentStamp.Function
 {
-    //https://github.com/Azure/DotNetty/issues/246 memoryleaks in dotnetty
+    //https://github.com/Azure/DotNetty/issues/246 memoryleaks in dotnetty, using web3 instead until fixed
     public class StampDocument
     {
         private readonly RestClient _restClient;
@@ -50,13 +49,17 @@ namespace DocumentStamp.Function
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)]
             HttpRequest req,
             ClaimsPrincipal principal,
-            Microsoft.Extensions.Logging.ILogger log)
+            ILogger log)
         {
+            string userId;
 #if (DEBUG)
+            //Test JWT token
             principal = JwtDebugTokenHelper.GenerateClaimsPrincipal();
+            userId = principal.Claims.First(x => x.Type == "sub").Value;
+#else
+            //Actual JWT token
+            userId = principal.Claims.First(x => x.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
 #endif
-
-            var userId = principal.Claims.First(x => x.Type == "sub").Value;
 
             log.LogInformation("StampDocument processing a request");
 
@@ -121,12 +124,12 @@ namespace DocumentStamp.Function
             catch (InvalidDataException ide)
             {
                 return new BadRequestObjectResult(new Result<string>(false,
-                    ide.ToString()));
+                    ide.Message));
             }
             catch (Exception exc)
             {
                 return new BadRequestObjectResult(new Result<string>(false,
-                    exc.ToString()));
+                    exc.Message));
             }
         }
     }

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Claims;
-using System.Threading.Tasks;
 using Catalyst.Modules.Repository.CosmosDb;
 using DocumentStamp.Helper;
 using DocumentStamp.Http.Response;
@@ -13,22 +12,19 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
-using RestSharp;
 
 namespace DocumentStamp.Function
 {
     public class GetStamps
     {
-        private readonly RestClient _restClient;
         private readonly CosmosDbRepository<DocumentStampMetaData> _documentStampMetaDataRepository;
-        public GetStamps(RestClient restClient, CosmosDbRepository<DocumentStampMetaData> documentStampMetaDataRepository)
+        public GetStamps(CosmosDbRepository<DocumentStampMetaData> documentStampMetaDataRepository)
         {
-            _restClient = restClient;
             _documentStampMetaDataRepository = documentStampMetaDataRepository;
         }
 
         [FunctionName("GetStamps")]
-        public async Task<IActionResult> Run(
+        public IActionResult Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = "GetStamps/{publicKey}/{page}/{count}")]
             HttpRequest req,
             ClaimsPrincipal principal,
@@ -37,11 +33,14 @@ namespace DocumentStamp.Function
             int count,
             ILogger log)
         {
+            page--;
+            string userId;
 #if (DEBUG)
             principal = JwtDebugTokenHelper.GenerateClaimsPrincipal();
+            userId = principal.Claims.First(x => x.Type == "sub").Value;
+#else
+            userId = principal.Claims.First(x => x.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
 #endif
-            page--;
-            var userId = principal.Claims.First(x => x.Type == "sub").Value;
 
             publicKey = publicKey.ToLowerInvariant();
             log.LogInformation("GetStamps processing a request");

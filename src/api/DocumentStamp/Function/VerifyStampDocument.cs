@@ -33,11 +33,13 @@ namespace DocumentStamp.Function
             string txId,
             ILogger log)
         {
+            string userId;
 #if (DEBUG)
             principal = JwtDebugTokenHelper.GenerateClaimsPrincipal();
+            userId = principal.Claims.First(x => x.Type == "sub").Value;
+#else
+            userId = principal.Claims.First(x => x.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
 #endif
-
-            var userId = principal.Claims.First(x => x.Type == "sub").Value;
 
             log.LogInformation("VerifyStampDocument processing a request");
 
