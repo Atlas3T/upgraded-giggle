@@ -1,7 +1,7 @@
 <template>
   <div>
     <q-card
-      v-if="signKey"
+      v-if="key && user.secretKey"
       flat
       class="account q-pa-sm"
     >
@@ -20,6 +20,7 @@
             outline
             color="black"
             :label="$t('backup')"
+            @click="openBackupdialog"
           />
         </div>
       </div>
@@ -46,19 +47,26 @@
           round
           color="primary"
           icon="lock"
-          @click="signKey=false"
+          @click="lockKey"
         />
       </div>
-      <div class="row justify-center text-blue q-mb-sm">
+      <div
+        class="row justify-center text-blue q-mb-sm"
+        @click="openImportDialog"
+      >
         {{ $t('importKey') }}
       </div>
-      <div class="row justify-center text-blue">
+      <div
+        class="row justify-center text-blue"
+        @click="openNewKeyDialog"
+      >
         {{ $t('newKey') }}
       </div>
       <div class="row justify-end" />
     </q-card>
+
     <q-card
-      v-if="!signKey"
+      v-if="!key && user.secretKey"
       flat
       class="account q-pa-sm"
     >
@@ -73,7 +81,9 @@
           v-model="password"
           :label="$t('enterPassword')"
           :type="isPwd ? 'password' : 'text'"
+          :error="!isValid"
           class="q-my-sm signing-key"
+          @keyup.enter="unlockKey(password)"
         >
           <template v-slot:append>
             <q-icon
@@ -82,6 +92,9 @@
               @click="isPwd = !isPwd"
             />
           </template>
+          <template v-slot:error>
+            {{ $t('wrongPassword') }}
+          </template>
         </q-input>
       </div>
       <div class="row justify-center q-mb-sm">
@@ -89,28 +102,88 @@
           outline
           :label="$t('unlock')"
           color="primary"
-          @click="signKey=true"
+          @click="unlockKey(password)"
         />
       </div>
-      <div class="row justify-center text-blue q-mb-sm">
+      <div
+        class="row justify-center text-blue q-mb-sm"
+        @click="openImportDialog"
+      >
         {{ $t('importKey') }}
       </div>
-      <div class="row justify-center text-blue">
+      <div
+        class="row justify-center text-blue"
+        @click="openNewKeyDialog"
+      >
         {{ $t('newKey') }}
       </div>
       <div class="row justify-end" />
     </q-card>
+
+    <q-card
+      v-if="!user.secretKey"
+      flat
+      class="account q-pa-sm"
+    >
+      <div class="row justify-center text-weight-bold text-h6 q-mb-xs">
+        <div>{{ $t('createKey') }}</div>
+      </div>
+      <div class="row justify-center text-center">
+        {{ $t('createKeyDesc') }}
+      </div>
+      <div class="row justify-center q-my-sm">
+        <q-btn
+          outline
+          :label="$t('createKeyLabel')"
+          color="primary"
+          @click="newKey=true"
+        />
+      </div>
+      <div
+        class="row justify-center text-blue q-mb-sm"
+        @click="openImportDialog"
+      >
+        {{ $t('importKey') }}
+      </div>
+      <div class="row justify-end" />
+    </q-card>
+    <q-dialog v-model="newKey">
+      <Import
+        v-if="dialogMode==='import'"
+        @close="newKey=false"
+      />
+      <Backup
+        v-if="dialogMode=='backup'"
+        @backup="backup"
+      />
+      <NewKey
+        v-if="dialogMode=='new'"
+        :mode="dialogMode"
+        @close="closeDialog"
+      />
+    </q-dialog>
   </div>
 </template>
 <script>
 import User from '../../store/User';
+import NewKey from './NewKey';
+import Backup from './BackupKey';
+import Import from './ImportKey';
 
 export default {
   name: 'Key',
+  components: {
+    NewKey,
+    Backup,
+    Import,
+  },
 
   data() {
     return {
-      signKey: true,
+      isValid: true,
+      dialogMode: 'new',
+      newKey: false,
+      signKey: false,
       isPwd: true,
       password: '',
       tiers: {
@@ -142,10 +215,63 @@ export default {
     },
 
     key() {
-      return this.user.secretKey;
+      return this.$store.state.settings.authenticatedAccount;
+    },
+  },
+
+  methods: {
+    closeDialog() {
+      this.newKey = false;
+      this.$emit('close');
+    },
+    openNewKeyDialog() {
+      this.newKey = true;
+      this.dialogMode = 'new';
+    },
+    openBackupdialog() {
+      this.newKey = true;
+      this.dialogMode = 'backup';
     },
 
+    openImportDialog() {
+      this.newKey = true;
+      this.dialogMode = 'import';
+    },
 
+    async addKey(password) {
+      const keypair = this.$keypair.new();
+      const encrypted = await this.$crypto.encrypt(keypair.secretKey, password);
+
+      await User.update({
+        data: {
+          accountIdentifier: this.account.accountIdentifier,
+          pubKey: keypair.publicKey,
+          secretKey: encrypted,
+        },
+      });
+    },
+    async lockKey() {
+      await this.$store.dispatch('settings/setAuthenticatedAccount', null);
+    },
+
+    async unlockKey(password) {
+      const decrypted = await this.$crypto.decrypt(this.user.secretKey, password);
+      if (decrypted) {
+        await this.$store.dispatch('settings/setAuthenticatedAccount', decrypted);
+        this.$emit('sign');
+        this.$emit('closeUnlock');
+      } else {
+        this.isValid = false;
+        setTimeout(() => {
+          this.isValid = true;
+        }, 2000);
+      }
+    },
+
+    async backup() {
+      await this.$crypto.createKeystore(this.user);
+      this.newKey = false;
+    },
   },
 };
 </script>

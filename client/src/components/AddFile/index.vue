@@ -120,6 +120,19 @@
           :scope="scope"
         />
       </div>
+      <q-dialog v-model="dialog">
+        <UnlockKey
+          v-if="unlockKey"
+          mode="unlock"
+          @closeUnlock="dialog=false"
+          @sign="signHash"
+        />
+        <NewKey
+          v-if="newKey"
+          @close="dialog=false"
+          @sign="signHash"
+        />
+      </q-dialog>
       <q-inner-loading :showing="visible">
         <q-spinner-grid
           size="50px"
@@ -133,11 +146,15 @@
 import User from '../../store/User';
 import Timestamp from '../../store/Timestamp';
 import Proof from '../Proof';
+import UnlockKey from '../Key/NewKey';
+import NewKey from '../Key';
 
 export default {
   name: 'AddFile',
   components: {
     Proof,
+    UnlockKey,
+    NewKey,
   },
 
   props: {
@@ -149,6 +166,9 @@ export default {
 
   data() {
     return {
+      dialog: false,
+      newKey: false,
+      unlockKey: false,
       file: null,
       confirmed: false,
       tab: 'sign',
@@ -194,6 +214,10 @@ export default {
       }
 
       return 'fas fa-file';
+    },
+
+    key() {
+      return this.$store.state.settings.authenticatedAccount;
     },
   },
 
@@ -247,16 +271,32 @@ export default {
     },
 
     signHash() {
-      const sig = this.$keypair.signMessage(this.file.hash, this.user.secretKey);
-      this.file.signature = this.$base32(sig).toLowerCase();
-
-
-      this.sendProof();
+      if (this.key) {
+        const sig = this.$keypair.signMessage(this.file.hash, this.key);
+        this.file.signature = this.$base32(sig).toLowerCase();
+        this.sendProof();
+      } else if (!this.user.secretKey) {
+        this.newKey = true;
+        this.dialog = true;
+      } else {
+        this.unlockKey = true;
+        this.dialog = true;
+      }
     },
 
     async sendProof() {
       this.visible = true;
       try {
+        if (Date.now() > this.user.tokenExpires) {
+          const token = await this.$auth.getToken();
+          this.$axios.defaults.headers.common.Authorization = `Bearer ${token.accessToken}`;
+          User.update({
+            data: {
+              accountIdentifier: this.account.accountIdentifier,
+              tokenExpires: token.idToken.expiration,
+            },
+          });
+        }
         const tx = await this.$axios.post(`${process.env.API}StampDocument${process.env.STAMP_KEY}`, {
           fileName: this.file.name,
           hash: this.file.base32Hash,

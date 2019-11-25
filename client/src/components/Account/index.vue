@@ -15,6 +15,22 @@
         <div><q-icon name="fas fa-envelope" /></div>
         <div>{{ user.email }}</div>
       </div>
+      <div
+        v-if="user.pubKey"
+        class="row q-gutter-x-sm q-mb-xs"
+      >
+        <div><q-icon name="fas fa-key" /></div>
+        <div
+          class="overflow"
+          style="width:90%;"
+          @click="copy(user.pubKey)"
+        >
+          {{ user.pubKey.toLowerCase() }}
+          <q-tooltip>
+            {{ copyLabel }}
+          </q-tooltip>
+        </div>
+      </div>
     </q-card>
   </div>
 </template>
@@ -26,6 +42,7 @@ export default {
 
   data() {
     return {
+      copyLabel: this.$t('copyPubKey'),
       isPwd: true,
       tiers: {
         free: 50,
@@ -58,8 +75,19 @@ export default {
     key() {
       return this.user.secretKey;
     },
+  },
 
-
+  methods: {
+    copy(text) {
+      navigator.clipboard.writeText(text.toLowerCase()).then(() => {
+        this.copyLabel = this.$t('copied');
+        setTimeout(() => {
+          this.copyLabel = this.$t('copyPubKey');
+        }, 1500);
+      }, (err) => {
+        console.error('Async: Could not copy text: ', err);
+      });
+    },
   },
 };
 </script>

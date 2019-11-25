@@ -15,6 +15,7 @@ module.exports = function (ctx) {
       'base32',
       'auth',
       'createPdf',
+      'crypto',
     ],
 
     // https://quasar.dev/quasar-cli/quasar-conf-js#Property%3A-css
@@ -62,7 +63,7 @@ module.exports = function (ctx) {
       scopeHoisting: true,
       env: {
         API: JSON.stringify('https://documentstamp.azurewebsites.net/api/'),
-        STAMP_KEY: JSON.stringify('?code=AJNcVPZsy9bdB5iMDl4jGDHsbEPWZRPFkLP53gUDvPqixoJatWTQBQ=='),
+        STAMP_KEY: JSON.stringify('?code=W4YaftqDNIXD6sXiuYgRmIiTOZZ6lk6Ttobr9jPOaIF1XC0dsOKmlg=='),
         VERIFY_KEY: JSON.stringify('?code=hC362dyPjv3OwrNNL3XS1JDZs9CEzef/azXMVkyK1Uh3OyWcpdJ6Cg=='),
         GET_STAMP_KEY: JSON.stringify('?code=b9KDXgDFC9M1pwY5639otMcZidDr3uif4ZS/27pDEZDOi5RoRWdr8w=='),
         TOTAL_STAMP_KEY: JSON.stringify('?code=weyu0y41MJSgFyeIUs1aRJDPi0pjYaAr/gm4hwAFMTJXHr3d7z6OFg=='),
