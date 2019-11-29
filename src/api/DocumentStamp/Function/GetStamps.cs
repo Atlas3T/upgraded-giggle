@@ -33,6 +33,10 @@ namespace DocumentStamp.Function
             ILogger log)
         {
             page--;
+            if (count > 200)
+            {
+                count = 200;
+            }
             string userId;
 #if (DEBUG)
             principal = JwtDebugTokenHelper.GenerateClaimsPrincipal();
